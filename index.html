@@ -2,9 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>هشام و عنان — اكتشفوا بعض</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>هشام و عنان — نكتشف بعض</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<!-- Firebase Realtime Database (for shared state across all users) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root {
   --rose-deep: #8B0000;
@@ -88,7 +91,7 @@ body {
   border:1.5px solid var(--gold); background:transparent;
   color:var(--gold); font-family:'Tajawal',sans-serif;
   font-size:1.1rem; font-weight:500; border-radius:50px;
-  cursor:pointer; transition:all 0.4s ease;
+  cursor:pointer; transition:all 0.4s ease; touch-action:manipulation;
   animation:fadeUp 0.8s ease-out 0.5s both;
 }
 .start-btn:hover {
@@ -115,7 +118,7 @@ body {
 
 /* ========== TOP NAV ========== */
 .top-nav {
-  position:sticky; top:0; z-index:100;
+  position:-webkit-sticky; position:sticky; top:0; z-index:100;
   background:linear-gradient(to bottom, var(--bg-dark) 70%, transparent);
   padding:1rem 0 1.5rem; text-align:center;
 }
@@ -130,7 +133,7 @@ body {
 .level-tab {
   padding:0.5rem 1.2rem; border:none; border-radius:50px;
   font-family:'Tajawal',sans-serif; font-size:0.85rem; font-weight:500;
-  cursor:pointer; transition:all 0.3s ease;
+  cursor:pointer; transition:all 0.3s ease; touch-action:manipulation;
   color:rgba(255,245,247,0.4); background:rgba(255,245,247,0.04);
   position:relative;
 }
@@ -153,7 +156,7 @@ body {
   border-radius:50px; font-family:'Tajawal',sans-serif;
   font-size:0.75rem; font-weight:400; cursor:pointer;
   color:rgba(255,245,247,0.4); background:transparent;
-  transition:all 0.3s ease;
+  transition:all 0.3s ease; touch-action:manipulation;
 }
 .filter-btn.active {
   color:var(--rose-cream); background:rgba(255,245,247,0.1);
@@ -168,7 +171,8 @@ body {
 
 /* ========== CARD AREA ========== */
 .card-area {
-  max-width:480px; margin:0 auto; padding:0 1.2rem 6rem;
+  max-width:480px; margin:0 auto;
+  padding:0 1.2rem calc(6rem + env(safe-area-inset-bottom));
   position:relative;
 }
 .level-header {
@@ -245,7 +249,7 @@ body {
   flex:1; min-width:0; padding:0.7rem 0.5rem;
   border:none; border-radius:14px;
   font-family:'Tajawal',sans-serif; font-size:0.8rem; font-weight:600;
-  cursor:pointer; transition:all 0.25s ease;
+  cursor:pointer; transition:all 0.25s ease; touch-action:manipulation;
   display:flex; align-items:center; justify-content:center; gap:0.3rem;
 }
 .action-btn:active { transform:scale(0.96); }
@@ -316,26 +320,29 @@ body {
 
 /* ========== SOUND TOGGLE ========== */
 .sound-toggle {
-  position:fixed; bottom:1.5rem; left:1.5rem;
+  position:fixed; bottom:calc(1.5rem + env(safe-area-inset-bottom)); left:1.5rem;
   width:44px; height:44px; border-radius:50%;
   background:rgba(255,245,247,0.08); border:1px solid rgba(255,245,247,0.1);
   color:var(--rose-cream); font-size:1.2rem;
   cursor:pointer; z-index:200; display:flex;
   align-items:center; justify-content:center;
-  transition:all 0.3s ease; backdrop-filter:blur(8px);
+  transition:all 0.3s ease;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  touch-action:manipulation;
 }
 .sound-toggle:hover { background:rgba(255,245,247,0.15); }
 .sound-toggle.muted { opacity:0.4; }
 
 /* ========== BACK BUTTON ========== */
 .back-btn {
-  position:fixed; bottom:1.5rem; right:1.5rem;
+  position:fixed; bottom:calc(1.5rem + env(safe-area-inset-bottom)); right:1.5rem;
   padding:0.6rem 1.5rem; border-radius:50px;
   background:rgba(255,245,247,0.08); border:1px solid rgba(255,245,247,0.1);
   color:var(--rose-cream); font-family:'Tajawal',sans-serif;
   font-size:0.85rem; cursor:pointer; z-index:200;
-  transition:all 0.3s ease; backdrop-filter:blur(8px);
-  display:none;
+  transition:all 0.3s ease;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  touch-action:manipulation; display:none;
 }
 .back-btn.visible { display:block; }
 .back-btn:hover { background:rgba(255,245,247,0.15); }
@@ -385,13 +392,13 @@ body {
 <!-- ========== HERO ========== -->
 <div class="hero" id="hero">
   <div class="hero-content">
-    <div class="hero-names">حشام & أنان</div>
-    <h1>اكتشفوا بعض</h1>
+    <div class="hero-names">هشام و عنان</div>
+    <h1>نكتشف بعض أكتر</h1>
     <p class="hero-sub">
-      ٢٠٠ سؤال معمولة بحرفنة عشان تفتحوا كلام حقيقي وصادق بينكم.
+      ٢٠٠+ سؤال معمولة بحرفنة عشان نفتح كلام حقيقي وصادق بينا.
       <br>٤ مستويات — من التفاصيل الصغيرة لحد العميق والمهم.
     </p>
-    <div class="hero-date">🌹 <span>١٣.٠٢</span> 🌹</div>
+    <div class="hero-date">🌹 <span>٢٣.٠١</span> 🌹</div>
     <button class="start-btn" onclick="startGame()">يلا نبدأ مع بعض</button>
   </div>
 </div>
@@ -400,7 +407,7 @@ body {
 <div class="app" id="app">
   <!-- TOP NAV -->
   <div class="top-nav">
-    <div class="top-nav-names">🌹 حشام & أنان 🌹</div>
+    <div class="top-nav-names">🌹 هشام و عنان 🌹</div>
     <div class="level-tabs" id="levelTabs"></div>
   </div>
 
@@ -429,8 +436,8 @@ body {
 // ========== QUESTION DATA ==========
 const questions = {
   1: {
-    title: "نتعرف على بعض",
-    desc: "أسئلة خفيفة تفتح الكلام وتكسر الحاجز بينكم",
+    title: "نتعرف على بعض أكتر",
+    desc: "أسئلة خفيفة كده ...",
     items: [
       "إيه أكتر حاجة بتفرحك في يومك العادي ومحدش واخد باله منها؟",
       "لو قدرت تعيش في أي مكان في العالم سنة كاملة، هتختار فين وليه؟",
@@ -481,12 +488,21 @@ const questions = {
       "إيه أكتر شخصية كرتون كنت بتحبها وأنت صغير؟",
       "لو ممكن تتعلم لغة جديدة بين يوم وليله، هتختار أنهي لغة؟",
       "إيه أحلى حاجة حصلتلك الأسبوع ده؟",
-      "إيه أكتر حاجة بتحبها في شغلك أو دراستك؟"
+      "إيه أكتر حاجة بتحبها في شغلك أو دراستك؟",
+      "إيه أكتر سورة في القرآن بتحب تسمعها وبتأثر فيك؟",
+      "بتحب تقرأ قرآن بصوت مين أكتر؟",
+      "إيه أحلى ذكرى ليك في رمضان من وأنت صغير؟",
+      "إيه أكتر دعاء بتدعيه كل يوم؟",
+      "إيه أكتر حاجة بتحبها في صلاة الفجر؟",
+      "إيه أكتر حاجة بتحبها في أجواء رمضان — السحور ولا الفطار ولا التراويح؟",
+      "إيه أكتر مسجد صليت فيه وحسيت بالراحة؟",
+      "بتحب تختم القرآن في رمضان ولا على مدار السنة؟",
+      "إيه أكتر حديث نبوي بتحبه وبيأثر فيك؟"
     ]
   },
   2: {
     title: "نقرّب أكتر",
-    desc: "أسئلة تخليكم تشوفوا جوانب جديدة من بعض",
+    desc: "أسئلة تخلينا نشوف جوانب جديدة من بعض",
     items: [
       "إيه الحاجة اللي بتخاف الناس تحكم عليك بسببها؟",
       "مين الشخص اللي أثّر فيك أكتر من أي حد تاني في حياتك؟",
@@ -537,12 +553,21 @@ const questions = {
       "إيه أكتر حاجة بتحبها في علاقتك بأهلك؟",
       "إيه أكتر حاجة ناقصاك في علاقتك بأهلك؟",
       "بتتعامل مع الضغط إزاي — بتنعزل ولا بتتكلم ولا بتشتغل أكتر؟",
-      "إيه أكتر حلم كان عندك وأنت صغير لسه بتفكر فيه؟"
+      "إيه أكتر حلم كان عندك وأنت صغير لسه بتفكر فيه؟",
+      "إيه أكتر موقف حسيت فيه إن ربنا قريب منك أوي؟",
+      "إيه أكتر عبادة بتحسسك بالراحة النفسية غير الصلاة؟",
+      "إيه أكتر حاجة اتعلمتها من سيرة النبي ﷺ وأثرت في شخصيتك؟",
+      "بتحس إنك قريب من ربنا دلوقتي ولا محتاج ترجع أكتر؟",
+      "إيه أكتر آية قرآنية بتحس إنها بتكلمك أنت شخصياً؟",
+      "إيه أكتر موقف من حياة الصحابة بيلهمك؟",
+      "بتحب تدعي لوحدك ولا في جماعة أكتر؟",
+      "إيه أكتر حاجة بتخليك تحس بالسكينة لما تكون قلقان؟",
+      "هل جربت قبل كده تقوم قيام ليل؟ وحسيت بإيه؟"
     ]
   },
   3: {
     title: "ندخل أعمق",
-    desc: "أسئلة محتاجة صراحة وثقة بينكم",
+    desc: "أسئلة محتاجة صراحة وثقة بينا",
     items: [
       "إيه أكبر خوف عندك في العلاقات عموماً؟",
       "إيه الحاجة اللي لو حد عملها هتحس إنه خانك حتى لو مش خيانة تقليدية؟",
@@ -593,12 +618,21 @@ const questions = {
       "بتسامح بسهولة ولا بتفضل فاكر؟",
       "إيه الحاجة اللي بتتمنى أهلك يفهموها عنك؟",
       "إيه أكتر موقف حسيت فيه بالخيانة من حد قريب منك؟",
-      "لو بتكتب رسالة صراحة ليا من غير خوف، هتقول فيها إيه؟"
+      "لو بتكتب رسالة صراحة ليا من غير خوف، هتقول فيها إيه؟",
+      "إيه أكتر حاجة بتحسسك بالذنب في علاقتك مع ربنا؟",
+      "فيه وقت حسيت إن إيمانك ضعف — إيه اللي رجعك؟",
+      "بتخاف من يوم الحساب؟ وإيه أكتر حاجة بتفكر فيها؟",
+      "إيه الحاجة اللي بتتمنى ربنا يغفرهالك؟",
+      "بتحس إنك بتعمل ذنوب وبتكررها ومش قادر تبطل؟ وإيه شعورك ساعتها؟",
+      "إيه أكتر حاجة بتحسسك إنك مقصر في حق ربنا؟",
+      "هل فيه وقت في حياتك حسيت إن ربنا بيختبرك اختبار صعب؟ إيه اللي ساعدك تعدي؟",
+      "بتحس إن الدعاء بيتقبل ولا ساعات بتشك؟ وبتتعامل مع الشك ده إزاي؟",
+      "إيه أكتر حاجة عايز تتوب منها وتبدأ صفحة جديدة مع ربنا؟"
     ]
   },
   4: {
     title: "الجد بجد",
-    desc: "أسئلة مهمة للي عايزين يبنوا حاجة حقيقية مع بعض",
+    desc: "أسئلة مهمة عالشان نبني حاجة حقيقية مع بعض",
     items: [
       "إيه تعريفك للالتزام في علاقة؟ وإيه اللي يخليك تحس إن التاني ملتزم معاك فعلاً؟",
       "لو حصل بينا خلاف كبير، إيه الطريقة اللي تخليك تحس إني بحترمك حتى وأنا زعلانة؟",
@@ -649,9 +683,36 @@ const questions = {
       "إيه أكتر حاجة بتحبها فيا ومش عايزني أغيّرها أبداً؟",
       "إيه الحاجة اللي عايز نوعد بعض بيها قبل ما نبدأ حياتنا مع بعض؟",
       "لو كاتب رسالة ليا أفتحها يوم فرحنا، هتكتب فيها إيه؟",
-      "إيه الكلمة اللي لو قلتهالك كل يوم هتخلي يومك أحلى؟"
+      "إيه الكلمة اللي لو قلتهالك كل يوم هتخلي يومك أحلى؟",
+      "إزاي عايز الدين يكون موجود في بيتنا يوم بيوم — مش بس في رمضان؟",
+      "عايز نربي ولادنا على إيه من الدين الأول؟ إيه أول حاجة عايزهم يتعلموها؟",
+      "إيه أكتر حاجة بتدعيها لعلاقتنا في سجودك؟",
+      "لو حسينا إننا بعدنا عن ربنا مع بعض، إيه أول حاجة هنعملها؟",
+      "إيه الآية أو الحديث اللي عايزه يكون شعار بيتنا؟",
+      "عايز نحفظ قرآن مع بعض؟ ولا نسمع دروس دين سوا؟ إيه اللي يناسبنا؟",
+      "إيه رأيك في الصدقة — عايزنا نعملها مع بعض إزاي وبأي شكل؟",
+      "بتحلم نعمل عمرة أو حج مع بعض؟ وعايز الرحلة دي تبقى شكلها إيه؟",
+      "لو في يوم اختلفنا على حاجة في الدين — حكم أو رأي فقهي — هنتعامل إزاي؟",
+      "إيه الدعاء اللي عايز ندعيه سوا ليلة فرحنا؟",
+      "عايز تبدأ يومك وتختمه إزاي من ناحية الأذكار والعبادة — وعايزني أشاركك ولا كل واحد لوحده؟",
+      "إيه أكتر حاجة بتتمنى ربنا يرزقنا بيها في حياتنا مع بعض؟"
     ]
   }
+};
+
+// ========== FIREBASE CONFIG ==========
+// 1. Go to https://console.firebase.google.com and create a project
+// 2. Add a Realtime Database (Start in test mode for public read/write)
+// 3. Replace ALL values below with your own project's config
+// 4. That's it — both users will see each other's changes in real time!
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCEVoEhxFDY4Nohq2aHuc_lYYEebcn1GwU",
+  authDomain: "questions-game-b2798.firebaseapp.com",
+  databaseURL: "https://questions-game-b2798-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "questions-game-b2798",
+  storageBucket: "questions-game-b2798.firebasestorage.app",
+  messagingSenderId: "30072085848",
+  appId: "1:30072085848:web:ff3607e513f016b5ad592d"
 };
 
 // ========== STATE ==========
@@ -662,98 +723,181 @@ let audioCtx = null;
 
 // Question states: 'new', 'answered', 'skipped', 'refused'
 let questionStates = {};
+let stateRef = null;  // Firebase database reference
 
-// Initialize states
-function initStates() {
-  // Try loading from localStorage
-  try {
-    const saved = localStorage.getItem('hesham_anan_game');
-    if (saved) {
-      questionStates = JSON.parse(saved);
-      return;
+// Make sure every question key exists (new questions added after first sync)
+function ensureAllStatesExist() {
+  for (let level = 1; level <= 4; level++) {
+    for (let i = 0; i < questions[level].items.length; i++) {
+      const key = `${level}-${i}`;
+      if (!questionStates[key]) questionStates[key] = 'new';
     }
-  } catch(e) {}
-  
+  }
+}
+
+// Initialize states from localStorage (instant), Firebase will override
+function initStates() {
+  // Default: all new
   for (let level = 1; level <= 4; level++) {
     for (let i = 0; i < questions[level].items.length; i++) {
       questionStates[`${level}-${i}`] = 'new';
     }
   }
+  // Quick-load from localStorage so the UI is not empty on first paint
+  try {
+    const saved = localStorage.getItem('hesham_anan_game_v2');
+    if (saved) questionStates = Object.assign(questionStates, JSON.parse(saved));
+  } catch(e) {}
 }
 
 function saveStates() {
-  try { localStorage.setItem('hesham_anan_game', JSON.stringify(questionStates)); } catch(e) {}
+  // Persist locally as offline fallback
+  try { localStorage.setItem('hesham_anan_game_v2', JSON.stringify(questionStates)); } catch(e) {}
+  // Push to Firebase so the other user sees the change immediately
+  if (stateRef) stateRef.set(questionStates).catch(() => {});
+}
+
+// ========== FIREBASE INIT ==========
+function initFirebase() {
+  const url = FIREBASE_CONFIG.databaseURL;
+  if (!url || url.includes('YOUR_PROJECT')) {
+    // Config not filled in yet — local-only mode
+    return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    stateRef = firebase.database().ref('game/states');
+
+    // Real-time listener: whenever any user changes a state, update here too
+    stateRef.on('value', snapshot => {
+      const remote = snapshot.val();
+      if (!remote) return;
+      // Only re-render if the data actually differs (avoids echo from our own writes)
+      if (JSON.stringify(remote) === JSON.stringify(questionStates)) return;
+      questionStates = remote;
+      ensureAllStatesExist();
+      // Persist the fresh data locally
+      try { localStorage.setItem('hesham_anan_game_v2', JSON.stringify(questionStates)); } catch(e) {}
+      // Re-render if the app is open
+      if (document.getElementById('app').classList.contains('visible')) render();
+    });
+  } catch(e) {
+    console.error('Firebase init failed, running in local-only mode:', e);
+  }
 }
 
 // ========== SOUND ENGINE (Web Audio API) ==========
 function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e) { return null; }
   return audioCtx;
+}
+
+// iOS / Safari audio unlock.
+// MUST be called synchronously inside a user gesture handler (tap/click).
+// Key rules:
+//   1. ctx.resume() and the silent buffer BOTH fire synchronously —
+//      never inside a .then() — because iOS closes the gesture window
+//      before async promises resolve.
+//   2. Do NOT disconnect the source node immediately; let it finish
+//      naturally so iOS registers actual audio playback.
+function iosAudioUnlock() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  // Fire resume() synchronously (non-blocking)
+  ctx.resume().catch(() => {});
+  // Also play a silent 1-sample buffer synchronously in the same gesture tick
+  try {
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch(e) {}
 }
 
 function playSound(type) {
   if (!soundEnabled) return;
   const ctx = getAudioCtx();
-  
-  if (type === 'answered') {
-    // Warm, happy chime - two notes
-    [523.25, 659.25].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, ctx.currentTime + i*0.12);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.12 + 0.5);
-      osc.start(ctx.currentTime + i*0.12);
-      osc.stop(ctx.currentTime + i*0.12 + 0.5);
-    });
-  } else if (type === 'skip') {
-    // Soft swoosh - noise burst
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.2);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    osc.start(); osc.stop(ctx.currentTime + 0.2);
-  } else if (type === 'refuse') {
-    // Gentle low tone
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.value = 220;
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(); osc.stop(ctx.currentTime + 0.3);
-  } else if (type === 'undo') {
-    // Quick reverse pip
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(500, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.start(); osc.stop(ctx.currentTime + 0.15);
-  } else if (type === 'levelComplete') {
-    // Celebratory ascending arpeggio
-    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.12, ctx.currentTime + i*0.15);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.15 + 0.6);
-      osc.start(ctx.currentTime + i*0.15);
-      osc.stop(ctx.currentTime + i*0.15 + 0.6);
-    });
+  if (!ctx) return;
+
+  function _play() {
+    try {
+      // Use a small future offset (0.05 s) for ALL scheduled events.
+      // Safari / iOS silently drops events scheduled at ctx.currentTime === 0,
+      // and can misbehave when start time equals currentTime exactly.
+      const t = ctx.currentTime + 0.05;
+
+      if (type === 'answered') {
+        [523.25, 659.25].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const s = t + i * 0.12;
+          gain.gain.cancelScheduledValues(0);
+          gain.gain.setValueAtTime(0.15, s);
+          gain.gain.exponentialRampToValueAtTime(0.001, s + 0.5);
+          osc.start(s); osc.stop(s + 0.5);
+        });
+      } else if (type === 'skip') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.cancelScheduledValues(0);
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.exponentialRampToValueAtTime(200, t + 0.2);
+        gain.gain.cancelScheduledValues(0);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.start(t); osc.stop(t + 0.2);
+      } else if (type === 'refuse') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 220;
+        gain.gain.cancelScheduledValues(0);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.start(t); osc.stop(t + 0.3);
+      } else if (type === 'undo') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.cancelScheduledValues(0);
+        osc.frequency.setValueAtTime(500, t);
+        osc.frequency.exponentialRampToValueAtTime(350, t + 0.15);
+        gain.gain.cancelScheduledValues(0);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        osc.start(t); osc.stop(t + 0.15);
+      } else if (type === 'levelComplete') {
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const s = t + i * 0.15;
+          gain.gain.cancelScheduledValues(0);
+          gain.gain.setValueAtTime(0.12, s);
+          gain.gain.exponentialRampToValueAtTime(0.001, s + 0.6);
+          osc.start(s); osc.stop(s + 0.6);
+        });
+      }
+    } catch(e) {}
+  }
+
+  // Always try to resume first; catches 'suspended' and iOS 'interrupted' states
+  if (ctx.state !== 'running') {
+    ctx.resume().then(_play).catch(() => {});
+  } else {
+    _play();
   }
 }
 
@@ -964,8 +1108,8 @@ function startGame() {
   document.getElementById('app').classList.add('visible');
   document.getElementById('backBtn').classList.add('visible');
   document.getElementById('soundToggle').style.display = 'flex';
-  // Resume audio context on user gesture
-  getAudioCtx();
+  // Unlock audio on this user gesture (required for iOS Safari)
+  iosAudioUnlock();
   render();
   window.scrollTo(0,0);
 }
@@ -983,13 +1127,22 @@ function toggleSound() {
   const btn = document.getElementById('soundToggle');
   btn.textContent = soundEnabled ? '🔊' : '🔇';
   btn.classList.toggle('muted', !soundEnabled);
+  if (soundEnabled) iosAudioUnlock();
 }
 
 // ========== INIT ==========
 initStates();
+initFirebase();
 createPetals();
+
+// Safari suspends AudioContext whenever the app goes to background or tab
+// is hidden. Re-resume it as soon as the page becomes visible again.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+});
 </script>
 
 </body>
 </html>
-
