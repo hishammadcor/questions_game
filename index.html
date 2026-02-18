@@ -741,13 +741,23 @@ function getAudioCtx() {
 function iosAudioUnlock() {
   const ctx = getAudioCtx();
   if (!ctx) return;
-  const buf = ctx.createBuffer(1, 1, 22050);
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.connect(ctx.destination);
-  src.start(0);
-  src.disconnect();
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  function playsilent() {
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    // Do NOT disconnect immediately — let the 1-sample buffer finish
+    // naturally so iOS registers it as audio played during a user gesture.
+  }
+
+  // Resume first (required when suspended), then play silent buffer.
+  if (ctx.state !== 'running') {
+    ctx.resume().then(playsilent).catch(playsilent);
+  } else {
+    playsilent();
+  }
 }
 
 function playSound(type) {
@@ -1056,6 +1066,14 @@ function toggleSound() {
 // ========== INIT ==========
 initStates();
 createPetals();
+
+// Safari suspends AudioContext whenever the app goes to background or tab
+// is hidden. Re-resume it as soon as the page becomes visible again.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+});
 </script>
 
 </body>
