@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 <!-- Firebase Realtime Database (for shared state across all users) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root {
@@ -760,31 +761,35 @@ function saveStates() {
 // ========== FIREBASE INIT ==========
 function initFirebase() {
   const url = FIREBASE_CONFIG.databaseURL;
-  if (!url || url.includes('YOUR_PROJECT')) {
-    // Config not filled in yet — local-only mode
-    return;
-  }
+  if (!url || url.includes('YOUR_PROJECT')) return;
+
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
-    stateRef = firebase.database().ref('game/states');
 
-    // Real-time listener: whenever any user changes a state, update here too
-    stateRef.on('value', snapshot => {
-      const remote = snapshot.val();
-      if (!remote) return;
-      // Only re-render if the data actually differs (avoids echo from our own writes)
-      if (JSON.stringify(remote) === JSON.stringify(questionStates)) return;
-      questionStates = remote;
-      ensureAllStatesExist();
-      // Persist the fresh data locally
-      try { localStorage.setItem('hesham_anan_game_v2', JSON.stringify(questionStates)); } catch(e) {}
-      // Re-render if the app is open
-      if (document.getElementById('app').classList.contains('visible')) render();
+    // Sign in silently (no UI, no user action needed)
+    firebase.auth().signInAnonymously().catch(console.error);
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) return;
+
+      stateRef = firebase.database().ref('game/states');
+
+      stateRef.on('value', snapshot => {
+        const remote = snapshot.val();
+        if (!remote) return;
+        if (JSON.stringify(remote) === JSON.stringify(questionStates)) return;
+
+        questionStates = remote;
+        ensureAllStatesExist();
+        try { localStorage.setItem('hesham_anan_game_v2', JSON.stringify(questionStates)); } catch(e) {}
+        if (document.getElementById('app').classList.contains('visible')) render();
+      });
     });
   } catch(e) {
     console.error('Firebase init failed, running in local-only mode:', e);
   }
 }
+
 
 // ========== SOUND ENGINE (Web Audio API) ==========
 function getAudioCtx() {
