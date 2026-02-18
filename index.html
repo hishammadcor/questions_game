@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>هشام و عنان — نكتشف بعض</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<!-- Firebase Realtime Database (for shared state across all users) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root {
   --rose-deep: #8B0000;
@@ -404,7 +407,7 @@ body {
 <div class="app" id="app">
   <!-- TOP NAV -->
   <div class="top-nav">
-    <div class="top-nav-names">🌹 هشام & عنان 🌹</div>
+    <div class="top-nav-names">🌹 هشام و عنان 🌹</div>
     <div class="level-tabs" id="levelTabs"></div>
   </div>
 
@@ -697,6 +700,21 @@ const questions = {
   }
 };
 
+// ========== FIREBASE CONFIG ==========
+// 1. Go to https://console.firebase.google.com and create a project
+// 2. Add a Realtime Database (Start in test mode for public read/write)
+// 3. Replace ALL values below with your own project's config
+// 4. That's it — both users will see each other's changes in real time!
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCEVoEhxFDY4Nohq2aHuc_lYYEebcn1GwU",
+  authDomain: "questions-game-b2798.firebaseapp.com",
+  databaseURL: "https://questions-game-b2798-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "questions-game-b2798",
+  storageBucket: "questions-game-b2798.firebasestorage.app",
+  messagingSenderId: "30072085848",
+  appId: "1:30072085848:web:ff3607e513f016b5ad592d"
+};
+
 // ========== STATE ==========
 let currentLevel = 1;
 let currentFilter = 'all';
@@ -705,27 +723,67 @@ let audioCtx = null;
 
 // Question states: 'new', 'answered', 'skipped', 'refused'
 let questionStates = {};
+let stateRef = null;  // Firebase database reference
 
-// Initialize states
-function initStates() {
-  // Try loading from localStorage
-  try {
-    const saved = localStorage.getItem('hesham_anan_game_v2');
-    if (saved) {
-      questionStates = JSON.parse(saved);
-      return;
+// Make sure every question key exists (new questions added after first sync)
+function ensureAllStatesExist() {
+  for (let level = 1; level <= 4; level++) {
+    for (let i = 0; i < questions[level].items.length; i++) {
+      const key = `${level}-${i}`;
+      if (!questionStates[key]) questionStates[key] = 'new';
     }
-  } catch(e) {}
-  
+  }
+}
+
+// Initialize states from localStorage (instant), Firebase will override
+function initStates() {
+  // Default: all new
   for (let level = 1; level <= 4; level++) {
     for (let i = 0; i < questions[level].items.length; i++) {
       questionStates[`${level}-${i}`] = 'new';
     }
   }
+  // Quick-load from localStorage so the UI is not empty on first paint
+  try {
+    const saved = localStorage.getItem('hesham_anan_game_v2');
+    if (saved) questionStates = Object.assign(questionStates, JSON.parse(saved));
+  } catch(e) {}
 }
 
 function saveStates() {
+  // Persist locally as offline fallback
   try { localStorage.setItem('hesham_anan_game_v2', JSON.stringify(questionStates)); } catch(e) {}
+  // Push to Firebase so the other user sees the change immediately
+  if (stateRef) stateRef.set(questionStates).catch(() => {});
+}
+
+// ========== FIREBASE INIT ==========
+function initFirebase() {
+  const url = FIREBASE_CONFIG.databaseURL;
+  if (!url || url.includes('YOUR_PROJECT')) {
+    // Config not filled in yet — local-only mode
+    return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    stateRef = firebase.database().ref('game/states');
+
+    // Real-time listener: whenever any user changes a state, update here too
+    stateRef.on('value', snapshot => {
+      const remote = snapshot.val();
+      if (!remote) return;
+      // Only re-render if the data actually differs (avoids echo from our own writes)
+      if (JSON.stringify(remote) === JSON.stringify(questionStates)) return;
+      questionStates = remote;
+      ensureAllStatesExist();
+      // Persist the fresh data locally
+      try { localStorage.setItem('hesham_anan_game_v2', JSON.stringify(questionStates)); } catch(e) {}
+      // Re-render if the app is open
+      if (document.getElementById('app').classList.contains('visible')) render();
+    });
+  } catch(e) {
+    console.error('Firebase init failed, running in local-only mode:', e);
+  }
 }
 
 // ========== SOUND ENGINE (Web Audio API) ==========
@@ -736,28 +794,27 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// iOS Safari requires a silent buffer played during a user gesture
-// to fully unlock the AudioContext. Must be called from a tap/click handler.
+// iOS / Safari audio unlock.
+// MUST be called synchronously inside a user gesture handler (tap/click).
+// Key rules:
+//   1. ctx.resume() and the silent buffer BOTH fire synchronously —
+//      never inside a .then() — because iOS closes the gesture window
+//      before async promises resolve.
+//   2. Do NOT disconnect the source node immediately; let it finish
+//      naturally so iOS registers actual audio playback.
 function iosAudioUnlock() {
   const ctx = getAudioCtx();
   if (!ctx) return;
-
-  function playsilent() {
+  // Fire resume() synchronously (non-blocking)
+  ctx.resume().catch(() => {});
+  // Also play a silent 1-sample buffer synchronously in the same gesture tick
+  try {
     const buf = ctx.createBuffer(1, 1, 22050);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
     src.start(0);
-    // Do NOT disconnect immediately — let the 1-sample buffer finish
-    // naturally so iOS registers it as audio played during a user gesture.
-  }
-
-  // Resume first (required when suspended), then play silent buffer.
-  if (ctx.state !== 'running') {
-    ctx.resume().then(playsilent).catch(playsilent);
-  } else {
-    playsilent();
-  }
+  } catch(e) {}
 }
 
 function playSound(type) {
@@ -766,68 +823,78 @@ function playSound(type) {
   if (!ctx) return;
 
   function _play() {
-    if (type === 'answered') {
-      // Warm, happy chime - two notes
-      [523.25, 659.25].forEach((freq, i) => {
+    try {
+      // Use a small future offset (0.05 s) for ALL scheduled events.
+      // Safari / iOS silently drops events scheduled at ctx.currentTime === 0,
+      // and can misbehave when start time equals currentTime exactly.
+      const t = ctx.currentTime + 0.05;
+
+      if (type === 'answered') {
+        [523.25, 659.25].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const s = t + i * 0.12;
+          gain.gain.cancelScheduledValues(0);
+          gain.gain.setValueAtTime(0.15, s);
+          gain.gain.exponentialRampToValueAtTime(0.001, s + 0.5);
+          osc.start(s); osc.stop(s + 0.5);
+        });
+      } else if (type === 'skip') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.cancelScheduledValues(0);
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.exponentialRampToValueAtTime(200, t + 0.2);
+        gain.gain.cancelScheduledValues(0);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.start(t); osc.stop(t + 0.2);
+      } else if (type === 'refuse') {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.15, ctx.currentTime + i*0.12);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.12 + 0.5);
-        osc.start(ctx.currentTime + i*0.12);
-        osc.stop(ctx.currentTime + i*0.12 + 0.5);
-      });
-    } else if (type === 'skip') {
-      // Soft swoosh - noise burst
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(400, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2);
-    } else if (type === 'refuse') {
-      // Gentle low tone
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = 220;
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
-    } else if (type === 'undo') {
-      // Quick reverse pip
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(500, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.15);
-    } else if (type === 'levelComplete') {
-      // Celebratory ascending arpeggio
-      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        osc.frequency.value = 220;
+        gain.gain.cancelScheduledValues(0);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.start(t); osc.stop(t + 0.3);
+      } else if (type === 'undo') {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.12, ctx.currentTime + i*0.15);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.15 + 0.6);
-        osc.start(ctx.currentTime + i*0.15);
-        osc.stop(ctx.currentTime + i*0.15 + 0.6);
-      });
-    }
+        osc.frequency.cancelScheduledValues(0);
+        osc.frequency.setValueAtTime(500, t);
+        osc.frequency.exponentialRampToValueAtTime(350, t + 0.15);
+        gain.gain.cancelScheduledValues(0);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        osc.start(t); osc.stop(t + 0.15);
+      } else if (type === 'levelComplete') {
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const s = t + i * 0.15;
+          gain.gain.cancelScheduledValues(0);
+          gain.gain.setValueAtTime(0.12, s);
+          gain.gain.exponentialRampToValueAtTime(0.001, s + 0.6);
+          osc.start(s); osc.stop(s + 0.6);
+        });
+      }
+    } catch(e) {}
   }
 
-  if (ctx.state === 'suspended') {
+  // Always try to resume first; catches 'suspended' and iOS 'interrupted' states
+  if (ctx.state !== 'running') {
     ctx.resume().then(_play).catch(() => {});
   } else {
     _play();
@@ -1065,6 +1132,7 @@ function toggleSound() {
 
 // ========== INIT ==========
 initStates();
+initFirebase();
 createPetals();
 
 // Safari suspends AudioContext whenever the app goes to background or tab
