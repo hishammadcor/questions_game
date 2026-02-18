@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>هشام و عنان — اكتشفوا بعض</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -88,7 +88,7 @@ body {
   border:1.5px solid var(--gold); background:transparent;
   color:var(--gold); font-family:'Tajawal',sans-serif;
   font-size:1.1rem; font-weight:500; border-radius:50px;
-  cursor:pointer; transition:all 0.4s ease;
+  cursor:pointer; transition:all 0.4s ease; touch-action:manipulation;
   animation:fadeUp 0.8s ease-out 0.5s both;
 }
 .start-btn:hover {
@@ -115,7 +115,7 @@ body {
 
 /* ========== TOP NAV ========== */
 .top-nav {
-  position:sticky; top:0; z-index:100;
+  position:-webkit-sticky; position:sticky; top:0; z-index:100;
   background:linear-gradient(to bottom, var(--bg-dark) 70%, transparent);
   padding:1rem 0 1.5rem; text-align:center;
 }
@@ -130,7 +130,7 @@ body {
 .level-tab {
   padding:0.5rem 1.2rem; border:none; border-radius:50px;
   font-family:'Tajawal',sans-serif; font-size:0.85rem; font-weight:500;
-  cursor:pointer; transition:all 0.3s ease;
+  cursor:pointer; transition:all 0.3s ease; touch-action:manipulation;
   color:rgba(255,245,247,0.4); background:rgba(255,245,247,0.04);
   position:relative;
 }
@@ -153,7 +153,7 @@ body {
   border-radius:50px; font-family:'Tajawal',sans-serif;
   font-size:0.75rem; font-weight:400; cursor:pointer;
   color:rgba(255,245,247,0.4); background:transparent;
-  transition:all 0.3s ease;
+  transition:all 0.3s ease; touch-action:manipulation;
 }
 .filter-btn.active {
   color:var(--rose-cream); background:rgba(255,245,247,0.1);
@@ -168,7 +168,8 @@ body {
 
 /* ========== CARD AREA ========== */
 .card-area {
-  max-width:480px; margin:0 auto; padding:0 1.2rem 6rem;
+  max-width:480px; margin:0 auto;
+  padding:0 1.2rem calc(6rem + env(safe-area-inset-bottom));
   position:relative;
 }
 .level-header {
@@ -245,7 +246,7 @@ body {
   flex:1; min-width:0; padding:0.7rem 0.5rem;
   border:none; border-radius:14px;
   font-family:'Tajawal',sans-serif; font-size:0.8rem; font-weight:600;
-  cursor:pointer; transition:all 0.25s ease;
+  cursor:pointer; transition:all 0.25s ease; touch-action:manipulation;
   display:flex; align-items:center; justify-content:center; gap:0.3rem;
 }
 .action-btn:active { transform:scale(0.96); }
@@ -316,26 +317,29 @@ body {
 
 /* ========== SOUND TOGGLE ========== */
 .sound-toggle {
-  position:fixed; bottom:1.5rem; left:1.5rem;
+  position:fixed; bottom:calc(1.5rem + env(safe-area-inset-bottom)); left:1.5rem;
   width:44px; height:44px; border-radius:50%;
   background:rgba(255,245,247,0.08); border:1px solid rgba(255,245,247,0.1);
   color:var(--rose-cream); font-size:1.2rem;
   cursor:pointer; z-index:200; display:flex;
   align-items:center; justify-content:center;
-  transition:all 0.3s ease; backdrop-filter:blur(8px);
+  transition:all 0.3s ease;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  touch-action:manipulation;
 }
 .sound-toggle:hover { background:rgba(255,245,247,0.15); }
 .sound-toggle.muted { opacity:0.4; }
 
 /* ========== BACK BUTTON ========== */
 .back-btn {
-  position:fixed; bottom:1.5rem; right:1.5rem;
+  position:fixed; bottom:calc(1.5rem + env(safe-area-inset-bottom)); right:1.5rem;
   padding:0.6rem 1.5rem; border-radius:50px;
   background:rgba(255,245,247,0.08); border:1px solid rgba(255,245,247,0.1);
   color:var(--rose-cream); font-family:'Tajawal',sans-serif;
   font-size:0.85rem; cursor:pointer; z-index:200;
-  transition:all 0.3s ease; backdrop-filter:blur(8px);
-  display:none;
+  transition:all 0.3s ease;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  touch-action:manipulation; display:none;
 }
 .back-btn.visible { display:block; }
 .back-btn:hover { background:rgba(255,245,247,0.15); }
@@ -693,6 +697,20 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+// iOS Safari requires a silent buffer played during a user gesture
+// to fully unlock the AudioContext. Must be called from a tap/click handler.
+function iosAudioUnlock() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const buf = ctx.createBuffer(1, 1, 22050);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start(0);
+  src.disconnect();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
 function playSound(type) {
   if (!soundEnabled) return;
   const ctx = getAudioCtx();
@@ -974,8 +992,8 @@ function startGame() {
   document.getElementById('app').classList.add('visible');
   document.getElementById('backBtn').classList.add('visible');
   document.getElementById('soundToggle').style.display = 'flex';
-  // Resume audio context on user gesture
-  getAudioCtx();
+  // Unlock audio on this user gesture (required for iOS Safari)
+  iosAudioUnlock();
   render();
   window.scrollTo(0,0);
 }
@@ -993,6 +1011,7 @@ function toggleSound() {
   const btn = document.getElementById('soundToggle');
   btn.textContent = soundEnabled ? '🔊' : '🔇';
   btn.classList.toggle('muted', !soundEnabled);
+  if (soundEnabled) iosAudioUnlock();
 }
 
 // ========== INIT ==========
